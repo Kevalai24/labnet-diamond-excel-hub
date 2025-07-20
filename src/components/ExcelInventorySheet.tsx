@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Trash2, 
   Edit3, 
@@ -17,10 +18,47 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
+// Validation rules for dropdown columns
+const validationRules = {
+  shape: [
+    "Round", "Pear", "Oval", "Marquise", "Heart", "Radiant", "Princess", "Emerald", 
+    "Asscher", "Sq. Emerald", "Asscher & Sq. Emerald", "Square Radiant", "Cushion (All)", 
+    "Cushion Brilliant", "Cushion Modified", "Baguette", "European Cut", "Old Miner", 
+    "Briolette", "Bullets", "Calf", "Circular Brilliant", "Epaulette", "Flanders", 
+    "Half Moon", "Hexagonal", "Kite", "Lozenge", "Octagonal", "Pentagonal", "Rose", 
+    "Shield", "Square", "Star", "Tapered Baguette", "Tapered Bullet", "Trapezoid", 
+    "Triangular", "Trilliant", "Other"
+  ],
+  clarity: ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3", "I1", "I2", "I3"],
+  fancyColor: [
+    "Black", "Brown", "Brownish", "Champagne", "Cognac", "Chameleon", "Violetish", 
+    "White", "Brown-Greenish", "Green", "Greenish", "Purple", "Purplish", "Orange", 
+    "Orangey", "Violet", "Gray", "Grayish", "None", "Yellow", "Yellowish", "Pink", 
+    "Pinkish", "Blue", "Bluish", "Red", "Reddish", "Gray-Greenish", "Gray-Yellowish", 
+    "Orange-Brown", "Other"
+  ],
+  fancyColorOvertone: [
+    "Black", "Brown", "Brownish", "Champagne", "Cognac", "Chameleon", "Violetish", 
+    "White", "Brown-Greenish", "Green", "Greenish", "Purple", "Purplish", "Orange", 
+    "Orangey", "Violet", "Gray", "Grayish", "None", "Yellow", "Yellowish", "Pink", 
+    "Pinkish", "Blue", "Bluish", "Red", "Reddish", "Gray-Greenish", "Gray-Yellowish", 
+    "Orange-Brown", "Other"
+  ],
+  color: ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],
+  fluorescence: ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"],
+  cut: ["Excellent", "Very Good", "Good", "Poor", "Fair", "Ideal"],
+  symmetry: ["Excellent", "Very Good", "Good", "Poor", "Fair", "Ideal"],
+  polish: ["Excellent", "Very Good", "Good", "Poor", "Fair", "Ideal"],
+  fancyColorIntensity: ["Faint", "Very Light", "Fancy Light", "Light", "Fancy", "Dark Fancy", "Fancy Intense", "Fancy Deep", "Other"],
+  eyeClean: ["Yes", "Border Line", "E1", "E2(No)"],
+  laboratory: ["GIA", "GIA DOR", "HRD", "IGI", "AGS", "CGL", "DBIOD", "GCAL", "GII", "GHI", "GSI", "NGTC", "PGS", "RAP", "RDC", "SGL", "NONE"]
+}
+
 // Define the product structure
 interface Product {
   id: string
-  stockId: string
+  sellerId: string
+  productId: string
   shape: string
   carat: number
   color: string
@@ -40,6 +78,7 @@ interface Product {
   fancyColor: string
   fancyColorIntensity: string
   fancyColorOvertone: string
+  eyeClean: string
   sellerName: string
   sellerCompany: string
   sellerLocation: string
@@ -60,7 +99,8 @@ interface CellPosition {
 const sampleProducts: Product[] = [
   {
     id: '1',
-    stockId: 'SD002529',
+    sellerId: 'SD',
+    productId: '002529',
     shape: 'Emerald',
     carat: 4.42,
     color: 'F',
@@ -68,7 +108,7 @@ const sampleProducts: Product[] = [
     cut: 'Very Good',
     polish: 'Very Good',
     symmetry: 'Very Good',
-    fluorescence: 'Faint',
+    fluorescence: 'FL',
     laboratory: 'GIA',
     certificateNumber: '683550971',
     measurements: '6.93*6.63*5.05',
@@ -78,8 +118,9 @@ const sampleProducts: Product[] = [
     totalPrice: 1824.55,
     growthType: 'CVD',
     fancyColor: 'Yellow',
-    fancyColorIntensity: 'Fancy Vivid',
+    fancyColorIntensity: 'Fancy Intense',
     fancyColorOvertone: 'Pink',
+    eyeClean: 'Yes',
     sellerName: 'GemNova',
     sellerCompany: 'GemNova LLC',
     sellerLocation: 'New York, US',
@@ -92,7 +133,8 @@ const sampleProducts: Product[] = [
   },
   {
     id: '2',
-    stockId: 'SD002528',
+    sellerId: 'SD',
+    productId: '002528',
     shape: 'Emerald',
     carat: 3.88,
     color: 'G',
@@ -100,7 +142,7 @@ const sampleProducts: Product[] = [
     cut: 'Good',
     polish: 'Excellent',
     symmetry: 'Excellent',
-    fluorescence: 'None',
+    fluorescence: 'IF',
     laboratory: 'HRD',
     certificateNumber: '683550971',
     measurements: '6.93*6.63*5.05',
@@ -110,8 +152,9 @@ const sampleProducts: Product[] = [
     totalPrice: 1824.55,
     growthType: 'CVD',
     fancyColor: 'Yellow',
-    fancyColorIntensity: 'Fancy Vivid',
+    fancyColorIntensity: 'Fancy Deep',
     fancyColorOvertone: 'Green',
+    eyeClean: 'Border Line',
     sellerName: 'Aarav Diamonds',
     sellerCompany: 'Aarav Diamonds BVBA',
     sellerLocation: 'Antwerp, BE',
@@ -125,7 +168,8 @@ const sampleProducts: Product[] = [
 ]
 
 const columns: Array<{ key: keyof Product; label: string; width: string }> = [
-  { key: 'stockId', label: 'Stock ID', width: 'w-32' },
+  { key: 'sellerId', label: 'Seller ID', width: 'w-24' },
+  { key: 'productId', label: 'Product ID', width: 'w-24' },
   { key: 'shape', label: 'Shape', width: 'w-24' },
   { key: 'carat', label: 'Carat', width: 'w-20' },
   { key: 'color', label: 'Color', width: 'w-16' },
@@ -145,6 +189,7 @@ const columns: Array<{ key: keyof Product; label: string; width: string }> = [
   { key: 'fancyColor', label: 'Fancy Color', width: 'w-28' },
   { key: 'fancyColorIntensity', label: 'FC Intensity', width: 'w-28' },
   { key: 'fancyColorOvertone', label: 'FC Overtone', width: 'w-28' },
+  { key: 'eyeClean', label: 'Eye Clean', width: 'w-24' },
   { key: 'sellerName', label: 'Seller Name', width: 'w-32' },
   { key: 'sellerCompany', label: 'Seller Company', width: 'w-36' },
   { key: 'sellerLocation', label: 'Seller Location', width: 'w-32' },
@@ -242,7 +287,8 @@ export function ExcelInventorySheet() {
   const handleAddNew = useCallback(() => {
     const newProduct: Product = {
       id: Date.now().toString(),
-      stockId: '',
+      sellerId: '',
+      productId: '',
       shape: '',
       carat: 0,
       color: '',
@@ -262,6 +308,7 @@ export function ExcelInventorySheet() {
       fancyColor: '',
       fancyColorIntensity: '',
       fancyColorOvertone: '',
+      eyeClean: '',
       sellerName: '',
       sellerCompany: '',
       sellerLocation: '',
@@ -273,7 +320,7 @@ export function ExcelInventorySheet() {
       certificateUrl: ''
     }
     setProducts(prev => [newProduct, ...prev])
-    setEditingCell({ rowId: newProduct.id, field: 'stockId' })
+    setEditingCell({ rowId: newProduct.id, field: 'sellerId' })
     
     toast({
       title: "New Row Added",
@@ -340,8 +387,37 @@ export function ExcelInventorySheet() {
     const value = product[field]
     const isEditing = editingCell?.rowId === product.id && editingCell?.field === field
     const hasUnsavedChanges = unsavedChanges.has(product.id)
+    const fieldValidation = validationRules[field as keyof typeof validationRules]
     
     if (isEditing) {
+      // Use dropdown for fields with validation rules
+      if (fieldValidation) {
+        return (
+          <Select
+            value={value?.toString() || ''}
+            onValueChange={(newValue) => {
+              handleCellChange(newValue)
+              setEditingCell(null)
+            }}
+            onOpenChange={(open) => {
+              if (!open) setEditingCell(null)
+            }}
+          >
+            <SelectTrigger className="h-8 text-xs border-primary ring-2 ring-primary/20 animate-scale-in">
+              <SelectValue placeholder="Select..." />
+            </SelectTrigger>
+            <SelectContent className="max-h-[200px]">
+              {fieldValidation.map((option) => (
+                <SelectItem key={option} value={option} className="text-xs">
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      }
+      
+      // Regular input for non-validated fields
       return (
         <Input
           ref={inputRef}
@@ -358,7 +434,9 @@ export function ExcelInventorySheet() {
       <div 
         className={cn(
           "px-2 py-2 text-xs cursor-pointer hover:bg-accent/50 transition-colors h-8 flex items-center group",
-          hasUnsavedChanges && "bg-warning/10 border-l-2 border-l-warning"
+          hasUnsavedChanges && "bg-warning/10 border-l-2 border-l-warning",
+          fieldValidation && !fieldValidation.includes(value?.toString() || '') && value?.toString() !== '' && 
+          "bg-destructive/10 border-l-2 border-l-destructive" // Highlight invalid values
         )}
         onClick={() => handleCellClick(product.id, field)}
         title={value?.toString()}
