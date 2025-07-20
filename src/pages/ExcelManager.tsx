@@ -1,4 +1,4 @@
-import { InventorySpreadsheet } from '@/components/InventorySpreadsheet'
+import { ExcelInventorySheet } from '@/components/ExcelInventorySheet'
 import { Button } from '@/components/ui/button'
 import { FileSpreadsheet, Download, Upload, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -88,7 +88,7 @@ const ExcelManager = () => {
       </div>
 
       {/* Spreadsheet Component */}
-      <InventorySpreadsheet />
+      <ExcelInventorySheet />
     </div>
   )
 }
