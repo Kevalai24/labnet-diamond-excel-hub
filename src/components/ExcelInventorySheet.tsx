@@ -218,10 +218,10 @@ export function ExcelInventorySheet() {
   const { toast } = useToast()
 
   // Generate unique Product ID
-  const generateProductId = useCallback(() => {
+  const generateProductId = useCallback((offset = 0) => {
     const existingIds = products.map(p => parseInt(p.productId)).filter(id => !isNaN(id))
     const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0
-    return (maxId + 1).toString().padStart(6, '0')
+    return (maxId + 1 + offset).toString().padStart(6, '0')
   }, [products])
 
   // Focus input when editing starts
@@ -356,7 +356,7 @@ export function ExcelInventorySheet() {
       const newProduct: Product = {
         id: (Date.now() + i).toString(),
         sellerId: 'SD',
-        productId: generateProductId(),
+        productId: generateProductId(i),
         shape: '',
         carat: 0,
         color: '',
@@ -480,10 +480,10 @@ export function ExcelInventorySheet() {
       return
     }
     
-    const newProducts = clipboard.map(product => ({
+    const newProducts = clipboard.map((product, index) => ({
       ...product,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      productId: generateProductId()
+      productId: generateProductId(index)
     }))
     
     setProducts(prev => [...newProducts, ...prev])
@@ -506,10 +506,10 @@ export function ExcelInventorySheet() {
     
     const duplicatedProducts = products
       .filter(p => selectedRows.has(p.id))
-      .map(product => ({
+      .map((product, index) => ({
         ...product,
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        productId: generateProductId()
+        productId: generateProductId(index)
       }))
     
     setProducts(prev => [...duplicatedProducts, ...prev])
