@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { 
   Trash2, 
   Edit3, 
@@ -13,7 +16,11 @@ import {
   Clipboard,
   Download,
   Upload,
-  RotateCcw
+  RotateCcw,
+  Settings,
+  PlusCircle,
+  Files,
+  Edit
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -167,44 +174,55 @@ const sampleProducts: Product[] = [
   }
 ]
 
-const columns: Array<{ key: keyof Product; label: string; width: string }> = [
-  { key: 'sellerId', label: 'Seller ID', width: 'w-24' },
-  { key: 'productId', label: 'Product ID', width: 'w-24' },
-  { key: 'shape', label: 'Shape', width: 'w-24' },
-  { key: 'carat', label: 'Carat', width: 'w-20' },
-  { key: 'color', label: 'Color', width: 'w-16' },
-  { key: 'clarity', label: 'Clarity', width: 'w-20' },
-  { key: 'cut', label: 'Cut', width: 'w-24' },
-  { key: 'polish', label: 'Polish', width: 'w-24' },
-  { key: 'symmetry', label: 'Symmetry', width: 'w-24' },
-  { key: 'fluorescence', label: 'Fluorescence', width: 'w-28' },
-  { key: 'laboratory', label: 'Laboratory', width: 'w-24' },
-  { key: 'certificateNumber', label: 'Certificate #', width: 'w-32' },
-  { key: 'measurements', label: 'Measurements', width: 'w-32' },
-  { key: 'depthPercentage', label: 'Depth %', width: 'w-20' },
-  { key: 'tablePercentage', label: 'Table %', width: 'w-20' },
-  { key: 'pricePerCarat', label: 'Price/Carat', width: 'w-28' },
-  { key: 'totalPrice', label: 'Total Price', width: 'w-28' },
-  { key: 'growthType', label: 'Growth Type', width: 'w-28' },
-  { key: 'fancyColor', label: 'Fancy Color', width: 'w-28' },
-  { key: 'fancyColorIntensity', label: 'FC Intensity', width: 'w-28' },
-  { key: 'fancyColorOvertone', label: 'FC Overtone', width: 'w-28' },
-  { key: 'eyeClean', label: 'Eye Clean', width: 'w-24' },
-  { key: 'sellerName', label: 'Seller Name', width: 'w-32' },
-  { key: 'sellerCompany', label: 'Seller Company', width: 'w-36' },
-  { key: 'sellerLocation', label: 'Seller Location', width: 'w-32' },
-  { key: 'sellerPhone', label: 'Seller Phone', width: 'w-32' },
-  { key: 'sellerEmail', label: 'Seller Email', width: 'w-40' }
+const defaultColumns: Array<{ key: keyof Product; label: string; width: string; visible: boolean; editable: boolean }> = [
+  { key: 'sellerId', label: 'Seller ID', width: 'w-24', visible: true, editable: false },
+  { key: 'productId', label: 'Product ID', width: 'w-24', visible: true, editable: false },
+  { key: 'shape', label: 'Shape', width: 'w-24', visible: true, editable: true },
+  { key: 'carat', label: 'Carat', width: 'w-20', visible: true, editable: true },
+  { key: 'color', label: 'Color', width: 'w-16', visible: true, editable: true },
+  { key: 'clarity', label: 'Clarity', width: 'w-20', visible: true, editable: true },
+  { key: 'cut', label: 'Cut', width: 'w-24', visible: true, editable: true },
+  { key: 'polish', label: 'Polish', width: 'w-24', visible: true, editable: true },
+  { key: 'symmetry', label: 'Symmetry', width: 'w-24', visible: true, editable: true },
+  { key: 'fluorescence', label: 'Fluorescence', width: 'w-28', visible: true, editable: true },
+  { key: 'laboratory', label: 'Laboratory', width: 'w-24', visible: true, editable: true },
+  { key: 'certificateNumber', label: 'Certificate #', width: 'w-32', visible: true, editable: true },
+  { key: 'measurements', label: 'Measurements', width: 'w-32', visible: true, editable: true },
+  { key: 'depthPercentage', label: 'Depth %', width: 'w-20', visible: true, editable: true },
+  { key: 'tablePercentage', label: 'Table %', width: 'w-20', visible: true, editable: true },
+  { key: 'pricePerCarat', label: 'Price/Carat', width: 'w-28', visible: false, editable: true },
+  { key: 'totalPrice', label: 'Total Price', width: 'w-28', visible: false, editable: true },
+  { key: 'growthType', label: 'Growth Type', width: 'w-28', visible: false, editable: true },
+  { key: 'fancyColor', label: 'Fancy Color', width: 'w-28', visible: false, editable: true },
+  { key: 'fancyColorIntensity', label: 'FC Intensity', width: 'w-28', visible: false, editable: true },
+  { key: 'fancyColorOvertone', label: 'FC Overtone', width: 'w-28', visible: false, editable: true },
+  { key: 'eyeClean', label: 'Eye Clean', width: 'w-24', visible: false, editable: true },
+  { key: 'sellerName', label: 'Seller Name', width: 'w-32', visible: false, editable: true },
+  { key: 'sellerCompany', label: 'Seller Company', width: 'w-36', visible: false, editable: true },
+  { key: 'sellerLocation', label: 'Seller Location', width: 'w-32', visible: false, editable: true },
+  { key: 'sellerPhone', label: 'Seller Phone', width: 'w-32', visible: false, editable: true },
+  { key: 'sellerEmail', label: 'Seller Email', width: 'w-40', visible: false, editable: true }
 ]
 
 export function ExcelInventorySheet() {
   const [products, setProducts] = useState<Product[]>(sampleProducts)
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
-  const [clipboard, setClipboard] = useState<string>('')
+  const [clipboard, setClipboard] = useState<Product[]>([])
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set())
+  const [columns, setColumns] = useState(defaultColumns)
+  const [customColumnNames, setCustomColumnNames] = useState<Record<string, string>>({})
+  const [editingColumnName, setEditingColumnName] = useState<string | null>(null)
+  const [columnNameInput, setColumnNameInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Generate unique Product ID
+  const generateProductId = useCallback(() => {
+    const existingIds = products.map(p => parseInt(p.productId)).filter(id => !isNaN(id))
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0
+    return (maxId + 1).toString().padStart(6, '0')
+  }, [products])
 
   // Focus input when editing starts
   useEffect(() => {
@@ -215,8 +233,12 @@ export function ExcelInventorySheet() {
   }, [editingCell])
 
   const handleCellClick = useCallback((rowId: string, field: keyof Product) => {
+    // Don't allow editing if field is not editable
+    const column = columns.find(col => col.key === field)
+    if (column && !column.editable) return
+    
     setEditingCell({ rowId, field })
-  }, [])
+  }, [columns])
 
   const handleCellChange = useCallback((value: string) => {
     if (!editingCell) return
@@ -287,8 +309,8 @@ export function ExcelInventorySheet() {
   const handleAddNew = useCallback(() => {
     const newProduct: Product = {
       id: Date.now().toString(),
-      sellerId: '',
-      productId: '',
+      sellerId: 'SD',
+      productId: generateProductId(),
       shape: '',
       carat: 0,
       color: '',
@@ -320,13 +342,60 @@ export function ExcelInventorySheet() {
       certificateUrl: ''
     }
     setProducts(prev => [newProduct, ...prev])
-    setEditingCell({ rowId: newProduct.id, field: 'sellerId' })
+    setEditingCell({ rowId: newProduct.id, field: 'shape' })
     
     toast({
       title: "New Row Added",
-      description: "Click on any cell to start editing.",
+      description: `Product ID ${newProduct.productId} created. Click any cell to edit.`,
     })
-  }, [toast])
+  }, [toast, generateProductId])
+
+  const handleAddMultipleRows = useCallback((count: number) => {
+    const newProducts: Product[] = []
+    for (let i = 0; i < count; i++) {
+      const newProduct: Product = {
+        id: (Date.now() + i).toString(),
+        sellerId: 'SD',
+        productId: generateProductId(),
+        shape: '',
+        carat: 0,
+        color: '',
+        clarity: '',
+        cut: '',
+        polish: '',
+        symmetry: '',
+        fluorescence: '',
+        laboratory: '',
+        certificateNumber: '',
+        measurements: '',
+        depthPercentage: 0,
+        tablePercentage: 0,
+        pricePerCarat: 0,
+        totalPrice: 0,
+        growthType: '',
+        fancyColor: '',
+        fancyColorIntensity: '',
+        fancyColorOvertone: '',
+        eyeClean: '',
+        sellerName: '',
+        sellerCompany: '',
+        sellerLocation: '',
+        sellerPhone: '',
+        sellerWhatsApp: '',
+        sellerEmail: '',
+        videoUrl: '',
+        imageUrl: '',
+        certificateUrl: ''
+      }
+      newProducts.push(newProduct)
+    }
+    setProducts(prev => [...newProducts, ...prev])
+    
+    toast({
+      title: `${count} Rows Added`,
+      description: `${count} new products created with unique IDs.`,
+    })
+  }, [toast, generateProductId])
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.size === 0) {
@@ -375,7 +444,6 @@ export function ExcelInventorySheet() {
   }, [toast])
 
   const handleCopy = useCallback((value: string) => {
-    setClipboard(value)
     navigator.clipboard.writeText(value)
     toast({
       title: "Copied",
@@ -383,13 +451,115 @@ export function ExcelInventorySheet() {
     })
   }, [toast])
 
+  const handleCopyRows = useCallback(() => {
+    if (selectedRows.size === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select rows to copy.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    const copiedProducts = products.filter(p => selectedRows.has(p.id))
+    setClipboard(copiedProducts)
+    
+    toast({
+      title: "Rows Copied",
+      description: `${selectedRows.size} rows copied to clipboard.`,
+    })
+  }, [selectedRows, products, toast])
+
+  const handlePasteRows = useCallback(() => {
+    if (clipboard.length === 0) {
+      toast({
+        title: "Nothing to Paste",
+        description: "Copy some rows first.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    const newProducts = clipboard.map(product => ({
+      ...product,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      productId: generateProductId()
+    }))
+    
+    setProducts(prev => [...newProducts, ...prev])
+    
+    toast({
+      title: "Rows Pasted",
+      description: `${clipboard.length} rows pasted with new Product IDs.`,
+    })
+  }, [clipboard, generateProductId, toast])
+
+  const handleDuplicateRows = useCallback(() => {
+    if (selectedRows.size === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select rows to duplicate.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    const duplicatedProducts = products
+      .filter(p => selectedRows.has(p.id))
+      .map(product => ({
+        ...product,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        productId: generateProductId()
+      }))
+    
+    setProducts(prev => [...duplicatedProducts, ...prev])
+    setSelectedRows(new Set())
+    
+    toast({
+      title: "Rows Duplicated",
+      description: `${duplicatedProducts.length} rows duplicated with new Product IDs.`,
+    })
+  }, [selectedRows, products, generateProductId, toast])
+
+  const handleColumnVisibilityChange = useCallback((columnKey: string, visible: boolean) => {
+    setColumns(prev => prev.map(col => 
+      col.key === columnKey ? { ...col, visible } : col
+    ))
+  }, [])
+
+  const handleColumnNameEdit = useCallback((columnKey: string) => {
+    const column = columns.find(col => col.key === columnKey)
+    if (column) {
+      setEditingColumnName(columnKey)
+      setColumnNameInput(customColumnNames[columnKey] || column.label)
+    }
+  }, [columns, customColumnNames])
+
+  const handleColumnNameSave = useCallback(() => {
+    if (editingColumnName) {
+      setCustomColumnNames(prev => ({
+        ...prev,
+        [editingColumnName]: columnNameInput
+      }))
+      setEditingColumnName(null)
+      setColumnNameInput('')
+      
+      toast({
+        title: "Column Renamed",
+        description: "Column name updated successfully.",
+      })
+    }
+  }, [editingColumnName, columnNameInput, toast])
+
   const renderCell = (product: Product, field: keyof Product) => {
     const value = product[field]
     const isEditing = editingCell?.rowId === product.id && editingCell?.field === field
     const hasUnsavedChanges = unsavedChanges.has(product.id)
     const fieldValidation = validationRules[field as keyof typeof validationRules]
+    const column = columns.find(col => col.key === field)
+    const isEditable = column?.editable !== false
     
-    if (isEditing) {
+    if (isEditing && isEditable) {
       // Use dropdown for fields with validation rules
       if (fieldValidation) {
         return (
@@ -433,13 +603,15 @@ export function ExcelInventorySheet() {
     return (
       <div 
         className={cn(
-          "px-2 py-2 text-xs cursor-pointer hover:bg-accent/50 transition-colors h-8 flex items-center group",
+          "px-2 py-2 text-xs h-8 flex items-center group",
+          isEditable ? "cursor-pointer hover:bg-accent/50" : "cursor-not-allowed bg-muted/50",
           hasUnsavedChanges && "bg-warning/10 border-l-2 border-l-warning",
           fieldValidation && !fieldValidation.includes(value?.toString() || '') && value?.toString() !== '' && 
-          "bg-destructive/10 border-l-2 border-l-destructive" // Highlight invalid values
+          "bg-destructive/10 border-l-2 border-l-destructive", // Highlight invalid values
+          "transition-colors"
         )}
-        onClick={() => handleCellClick(product.id, field)}
-        title={value?.toString()}
+        onClick={() => isEditable && handleCellClick(product.id, field)}
+        title={`${value?.toString()} ${!isEditable ? '(Read-only)' : ''}`}
       >
         <span className="truncate flex-1">{value?.toString() || '-'}</span>
         <Copy 
@@ -453,6 +625,12 @@ export function ExcelInventorySheet() {
     )
   }
 
+  const visibleColumns = columns.filter(col => col.visible)
+
+  const getColumnDisplayName = (column: typeof columns[0]) => {
+    return customColumnNames[column.key] || column.label
+  }
+
   return (
     <div className="w-full space-y-4 animate-fade-in">
       {/* Toolbar */}
@@ -462,35 +640,195 @@ export function ExcelInventorySheet() {
             <CardTitle className="text-xl font-bold text-primary">
               Excel Inventory Manager
             </CardTitle>
-            <div className="flex gap-2">
-              <Button 
-                onClick={handleAddNew} 
-                variant="brand" 
-                size="sm"
-                className="animate-scale-in"
-              >
-                <Plus className="w-4 h-4" />
-                Add Row
-              </Button>
-              <Button 
-                onClick={handleDeleteSelected} 
-                variant="destructive" 
-                size="sm"
-                disabled={selectedRows.size === 0}
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Selected ({selectedRows.size})
-              </Button>
-              <Button 
-                onClick={handleSaveChanges} 
-                variant="success" 
-                size="sm"
-                disabled={unsavedChanges.size === 0}
-                className={unsavedChanges.size > 0 ? "animate-pulse" : ""}
-              >
-                <Save className="w-4 h-4" />
-                Save Changes ({unsavedChanges.size})
-              </Button>
+            <div className="flex gap-2 flex-wrap">
+              {/* Add Row Options */}
+              <div className="flex gap-1">
+                <Button 
+                  onClick={handleAddNew} 
+                  variant="default" 
+                  size="sm"
+                  className="animate-scale-in"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Row
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <PlusCircle className="w-4 h-4" />
+                      Add Multiple
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Multiple Rows</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        {[1, 5, 10, 25, 50].map(count => (
+                          <Button 
+                            key={count}
+                            onClick={() => {
+                              handleAddMultipleRows(count)
+                              // Close the dialog by clicking the close button
+                              const closeButton = document.querySelector('[role="dialog"] button[type="button"]') as HTMLButtonElement
+                              if (closeButton) {
+                                closeButton.click()
+                              }
+                            }}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {count} Row{count > 1 ? 's' : ''}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {/* Row Operations */}
+              <div className="flex gap-1">
+                <Button 
+                  onClick={handleCopyRows} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={selectedRows.size === 0}
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy ({selectedRows.size})
+                </Button>
+                <Button 
+                  onClick={handlePasteRows} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={clipboard.length === 0}
+                >
+                  <Clipboard className="w-4 h-4" />
+                  Paste ({clipboard.length})
+                </Button>
+                <Button 
+                  onClick={handleDuplicateRows} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={selectedRows.size === 0}
+                >
+                  <Files className="w-4 h-4" />
+                  Duplicate ({selectedRows.size})
+                </Button>
+              </div>
+
+              {/* Management Options */}
+              <div className="flex gap-1">
+                <Button 
+                  onClick={handleDeleteSelected} 
+                  variant="destructive" 
+                  size="sm"
+                  disabled={selectedRows.size === 0}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedRows.size})
+                </Button>
+                <Button 
+                  onClick={handleSaveChanges} 
+                  variant="default" 
+                  size="sm"
+                  disabled={unsavedChanges.size === 0}
+                  className={unsavedChanges.size > 0 ? "animate-pulse" : ""}
+                >
+                  <Save className="w-4 h-4" />
+                  Save ({unsavedChanges.size})
+                </Button>
+              </div>
+
+              {/* Column Settings */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings className="w-4 h-4" />
+                    Columns
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[600px] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Customize Columns</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Select which columns to display and customize their names:
+                    </div>
+                    <div className="grid gap-3">
+                      {columns.map((column) => (
+                        <div key={column.key} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              checked={column.visible}
+                              onCheckedChange={(checked) => 
+                                handleColumnVisibilityChange(column.key, checked as boolean)
+                              }
+                            />
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">
+                                {getColumnDisplayName(column)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {column.key} • {column.editable ? 'Editable' : 'Read-only'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {editingColumnName === column.key ? (
+                              <div className="flex gap-1">
+                                <Input
+                                  value={columnNameInput}
+                                  onChange={(e) => setColumnNameInput(e.target.value)}
+                                  className="h-8 w-32 text-xs"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleColumnNameSave()
+                                    if (e.key === 'Escape') {
+                                      setEditingColumnName(null)
+                                      setColumnNameInput('')
+                                    }
+                                  }}
+                                  autoFocus
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={handleColumnNameSave}
+                                  className="h-8 px-2"
+                                >
+                                  <Save className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingColumnName(null)
+                                    setColumnNameInput('')
+                                  }}
+                                  className="h-8 px-2"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleColumnNameEdit(column.key)}
+                                className="h-8 px-2"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -518,16 +856,22 @@ export function ExcelInventorySheet() {
                       className="rounded"
                     />
                   </th>
-                  {columns.map((col) => (
-                    <th 
-                      key={col.key} 
-                      className="border border-primary-foreground/20 p-2 text-left text-xs font-medium min-w-0"
-                    >
-                      <div className="truncate" title={col.label}>
-                        {col.label}
-                      </div>
-                    </th>
-                  ))}
+                   {visibleColumns.map((col) => (
+                     <th 
+                       key={col.key} 
+                       className="border border-primary-foreground/20 p-2 text-left text-xs font-medium min-w-0"
+                     >
+                       <div className="truncate" title={getColumnDisplayName(col)}>
+                         {getColumnDisplayName(col)}
+                         {!col.editable && (
+                           <span className="ml-1 text-xs opacity-60">🔒</span>
+                         )}
+                       </div>
+                     </th>
+                   ))}
+                   <th className="w-12 border border-primary-foreground/20 p-2 text-center text-xs font-medium">
+                     Actions
+                   </th>
                 </tr>
               </thead>
               
@@ -553,19 +897,35 @@ export function ExcelInventorySheet() {
                       />
                     </td>
                     
-                    {/* Data cells */}
-                    {columns.map((col) => (
-                      <td 
-                        key={col.key} 
-                        className={cn(
-                          "border border-border transition-all duration-200 min-w-0",
-                          editingCell?.rowId === product.id && editingCell?.field === col.key && 
-                          "ring-2 ring-primary/20 bg-primary/5"
-                        )}
-                      >
-                        {renderCell(product, col.key)}
-                      </td>
-                    ))}
+                     {/* Data cells */}
+                     {visibleColumns.map((col) => (
+                       <td 
+                         key={col.key} 
+                         className={cn(
+                           "border border-border transition-all duration-200 min-w-0",
+                           editingCell?.rowId === product.id && editingCell?.field === col.key && 
+                           "ring-2 ring-primary/20 bg-primary/5"
+                         )}
+                       >
+                         {renderCell(product, col.key)}
+                       </td>
+                     ))}
+                     
+                     {/* Row Actions */}
+                     <td className="border border-border p-1 w-12">
+                       <Button
+                         size="sm"
+                         variant="ghost"
+                         onClick={() => {
+                           setSelectedRows(new Set([product.id]))
+                           handleDeleteSelected()
+                         }}
+                         className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                         title="Delete this row"
+                       >
+                         <Trash2 className="w-3 h-3" />
+                       </Button>
+                     </td>
                   </tr>
                 ))}
               </tbody>
