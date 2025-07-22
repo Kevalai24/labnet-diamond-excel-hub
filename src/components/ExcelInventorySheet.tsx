@@ -20,7 +20,15 @@ import {
   Settings,
   PlusCircle,
   Files,
-  Edit
+  Edit,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Video,
+  Image,
+  FileText,
+  SortAsc,
+  SortDesc
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -190,6 +198,9 @@ const defaultColumns: Array<{ key: keyof Product; label: string; width: string; 
   { key: 'measurements', label: 'Measurements', width: 'w-32', visible: true, editable: true },
   { key: 'depthPercentage', label: 'Depth %', width: 'w-20', visible: true, editable: true },
   { key: 'tablePercentage', label: 'Table %', width: 'w-20', visible: true, editable: true },
+  { key: 'videoUrl', label: 'Video URL', width: 'w-32', visible: true, editable: false },
+  { key: 'imageUrl', label: 'Image URL', width: 'w-32', visible: true, editable: false },
+  { key: 'certificateUrl', label: 'Certificate URL', width: 'w-32', visible: true, editable: false },
   { key: 'pricePerCarat', label: 'Price/Carat', width: 'w-28', visible: false, editable: true },
   { key: 'totalPrice', label: 'Total Price', width: 'w-28', visible: false, editable: true },
   { key: 'growthType', label: 'Growth Type', width: 'w-28', visible: false, editable: true },
@@ -206,6 +217,7 @@ const defaultColumns: Array<{ key: keyof Product; label: string; width: string; 
 
 export function ExcelInventorySheet() {
   const [products, setProducts] = useState<Product[]>(sampleProducts)
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(sampleProducts)
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [clipboard, setClipboard] = useState<Product[]>([])
@@ -214,7 +226,12 @@ export function ExcelInventorySheet() {
   const [customColumnNames, setCustomColumnNames] = useState<Record<string, string>>({})
   const [editingColumnName, setEditingColumnName] = useState<string | null>(null)
   const [columnNameInput, setColumnNameInput] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({})
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Product; direction: 'asc' | 'desc' } | null>(null)
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   // Generate unique Product ID
@@ -231,6 +248,57 @@ export function ExcelInventorySheet() {
       inputRef.current.select()
     }
   }, [editingCell])
+
+  // Apply search and filters
+  useEffect(() => {
+    let filtered = products.filter(product => {
+      // Search across all fields
+      if (searchTerm) {
+        const searchValue = searchTerm.toLowerCase()
+        const searchableValue = Object.values(product)
+          .join(' ')
+          .toLowerCase()
+        if (!searchableValue.includes(searchValue)) {
+          return false
+        }
+      }
+
+      // Apply column filters
+      for (const [columnKey, filterValue] of Object.entries(columnFilters)) {
+        if (filterValue && filterValue.trim() !== '') {
+          const productValue = product[columnKey as keyof Product]?.toString().toLowerCase() || ''
+          if (!productValue.includes(filterValue.toLowerCase())) {
+            return false
+          }
+        }
+      }
+
+      return true
+    })
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        const aValue = a[sortConfig.key]
+        const bValue = b[sortConfig.key]
+        
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue
+        }
+        
+        const aStr = aValue?.toString() || ''
+        const bStr = bValue?.toString() || ''
+        
+        if (sortConfig.direction === 'asc') {
+          return aStr.localeCompare(bStr)
+        } else {
+          return bStr.localeCompare(aStr)
+        }
+      })
+    }
+
+    setFilteredProducts(filtered)
+  }, [products, searchTerm, columnFilters, sortConfig])
 
   const handleCellClick = useCallback((rowId: string, field: keyof Product) => {
     // Don't allow editing if field is not editable
@@ -551,6 +619,80 @@ export function ExcelInventorySheet() {
     }
   }, [editingColumnName, columnNameInput, toast])
 
+  // File upload functionality
+  const handleFileUpload = useCallback(async (productId: string, field: 'videoUrl' | 'imageUrl' | 'certificateUrl', file: File) => {
+    setUploadingFiles(prev => new Set([...prev, `${productId}-${field}`]))
+    
+    try {
+      // Simulate file upload and URL generation
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Generate a mock URL (in real app, this would be from your file storage service)
+      const fileExtension = file.name.split('.').pop()
+      const mockUrl = `https://storage.example.com/${productId}/${field}/${Date.now()}.${fileExtension}`
+      
+      setProducts(prev => prev.map(product => 
+        product.id === productId 
+          ? { ...product, [field]: mockUrl }
+          : product
+      ))
+      
+      setUnsavedChanges(prev => new Set([...prev, productId]))
+      
+      toast({
+        title: "File Uploaded",
+        description: `${field} updated successfully.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setUploadingFiles(prev => {
+        const updated = new Set(prev)
+        updated.delete(`${productId}-${field}`)
+        return updated
+      })
+    }
+  }, [toast])
+
+  // Sort functionality
+  const handleSort = useCallback((columnKey: keyof Product) => {
+    setSortConfig(prev => {
+      if (prev?.key === columnKey) {
+        if (prev.direction === 'asc') {
+          return { key: columnKey, direction: 'desc' }
+        } else {
+          return null // Remove sorting
+        }
+      } else {
+        return { key: columnKey, direction: 'asc' }
+      }
+    })
+  }, [])
+
+  // Filter functionality
+  const handleColumnFilter = useCallback((columnKey: string, value: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [columnKey]: value
+    }))
+  }, [])
+
+  // Clear all filters
+  const handleClearFilters = useCallback(() => {
+    setSearchTerm('')
+    setColumnFilters({})
+    setSortConfig(null)
+    
+    toast({
+      title: "Filters Cleared",
+      description: "All filters and sorting have been reset.",
+    })
+  }, [toast])
+
   const renderCell = (product: Product, field: keyof Product) => {
     const value = product[field]
     const isEditing = editingCell?.rowId === product.id && editingCell?.field === field
@@ -558,6 +700,67 @@ export function ExcelInventorySheet() {
     const fieldValidation = validationRules[field as keyof typeof validationRules]
     const column = columns.find(col => col.key === field)
     const isEditable = column?.editable !== false
+    const isUploading = uploadingFiles.has(`${product.id}-${field}`)
+    
+    // Special handling for URL fields with upload functionality
+    if (field === 'videoUrl' || field === 'imageUrl' || field === 'certificateUrl') {
+      const getIcon = () => {
+        switch (field) {
+          case 'videoUrl': return Video
+          case 'imageUrl': return Image
+          case 'certificateUrl': return FileText
+          default: return Upload
+        }
+      }
+      
+      const Icon = getIcon()
+      const hasUrl = value && value.toString().trim() !== ''
+      
+      return (
+        <div className="px-2 py-1 text-xs h-8 flex items-center gap-2">
+          {hasUrl ? (
+            <a 
+              href={value.toString()} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline truncate flex-1"
+              title={value.toString()}
+            >
+              <Icon className="w-3 h-3 inline mr-1" />
+              View
+            </a>
+          ) : (
+            <span className="text-muted-foreground flex-1">No file</span>
+          )}
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = field === 'videoUrl' ? 'video/*' : field === 'imageUrl' ? 'image/*' : '.pdf,.doc,.docx'
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0]
+                if (file) {
+                  handleFileUpload(product.id, field, file)
+                }
+              }
+              input.click()
+            }}
+            disabled={isUploading}
+            className="h-6 w-6 p-0"
+            title={`Upload ${field.replace('Url', '').toLowerCase()}`}
+          >
+            {isUploading ? (
+              <div className="w-3 h-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
+      )
+    }
     
     if (isEditing && isEditable) {
       // Use dropdown for fields with validation rules
@@ -831,6 +1034,33 @@ export function ExcelInventorySheet() {
               </Dialog>
             </div>
           </div>
+          
+          {/* Search and Filter Bar */}
+          <div className="flex gap-4 items-center mt-4 pt-4 border-t">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search across all fields..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+              disabled={!searchTerm && Object.keys(columnFilters).length === 0 && !sortConfig}
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              Clear Filters
+            </Button>
+            
+            <div className="text-xs text-muted-foreground">
+              Showing {filteredProducts.length} of {products.length} products
+            </div>
+          </div>
         </CardHeader>
       </Card>
 
@@ -839,45 +1069,84 @@ export function ExcelInventorySheet() {
         <CardContent className="p-0">
           <div className="overflow-auto max-h-[600px] border border-border">
             <table className="w-full border-collapse">
-              {/* Header */}
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-primary text-primary-foreground">
-                  <th className="w-12 border border-primary-foreground/20 p-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.size === products.length && products.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedRows(new Set(products.map(p => p.id)))
-                        } else {
-                          setSelectedRows(new Set())
-                        }
-                      }}
-                      className="rounded"
-                    />
-                  </th>
+               {/* Header */}
+               <thead className="sticky top-0 z-10">
+                 {/* Column Headers */}
+                 <tr className="bg-primary text-primary-foreground">
+                   <th className="w-12 border border-primary-foreground/20 p-2">
+                     <input
+                       type="checkbox"
+                       checked={selectedRows.size === filteredProducts.length && filteredProducts.length > 0}
+                       onChange={(e) => {
+                         if (e.target.checked) {
+                           setSelectedRows(new Set(filteredProducts.map(p => p.id)))
+                         } else {
+                           setSelectedRows(new Set())
+                         }
+                       }}
+                       className="rounded"
+                     />
+                   </th>
+                    {visibleColumns.map((col) => (
+                      <th 
+                        key={col.key} 
+                        className="border border-primary-foreground/20 p-1 text-left text-xs font-medium min-w-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <span className="truncate" title={getColumnDisplayName(col)}>
+                              {getColumnDisplayName(col)}
+                            </span>
+                            {!col.editable && (
+                              <span className="text-xs opacity-60">🔒</span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSort(col.key)}
+                              className="h-4 w-4 p-0 hover:bg-primary-foreground/20"
+                            >
+                              {sortConfig?.key === col.key ? (
+                                sortConfig.direction === 'asc' ? (
+                                  <SortAsc className="w-3 h-3" />
+                                ) : (
+                                  <SortDesc className="w-3 h-3" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </th>
+                    ))}
+                    <th className="w-12 border border-primary-foreground/20 p-2 text-center text-xs font-medium">
+                      Actions
+                    </th>
+                 </tr>
+                 
+                 {/* Filter Row */}
+                 <tr className="bg-primary/80 text-primary-foreground">
+                   <th className="w-12 border border-primary-foreground/20 p-1">
+                     <Filter className="w-3 h-3 mx-auto" />
+                   </th>
                    {visibleColumns.map((col) => (
-                     <th 
-                       key={col.key} 
-                       className="border border-primary-foreground/20 p-2 text-left text-xs font-medium min-w-0"
-                     >
-                       <div className="truncate" title={getColumnDisplayName(col)}>
-                         {getColumnDisplayName(col)}
-                         {!col.editable && (
-                           <span className="ml-1 text-xs opacity-60">🔒</span>
-                         )}
-                       </div>
+                     <th key={col.key} className="border border-primary-foreground/20 p-1">
+                       <Input
+                         placeholder="Filter..."
+                         value={columnFilters[col.key] || ''}
+                         onChange={(e) => handleColumnFilter(col.key, e.target.value)}
+                         className="h-6 text-xs bg-background/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/60"
+                       />
                      </th>
                    ))}
-                   <th className="w-12 border border-primary-foreground/20 p-2 text-center text-xs font-medium">
-                     Actions
-                   </th>
-                </tr>
-              </thead>
+                   <th className="w-12 border border-primary-foreground/20 p-1"></th>
+                 </tr>
+               </thead>
               
-              {/* Data Rows */}
-              <tbody>
-                {products.map((product, index) => (
+               {/* Data Rows */}
+               <tbody>
+                 {filteredProducts.map((product, index) => (
                   <tr 
                     key={product.id}
                     className={cn(
@@ -938,15 +1207,21 @@ export function ExcelInventorySheet() {
       <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
         <div className="flex gap-4">
           <span>Total: {products.length} products</span>
+          <span>Filtered: {filteredProducts.length} products</span>
           <span>Selected: {selectedRows.size} rows</span>
           {unsavedChanges.size > 0 && (
             <span className="text-warning font-medium animate-pulse">
               {unsavedChanges.size} unsaved changes
             </span>
           )}
+          {sortConfig && (
+            <span className="text-primary">
+              Sorted by {sortConfig.key} ({sortConfig.direction})
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
-          <span>Click any cell to edit • Tab/Enter to navigate • Esc to cancel</span>
+          <span>Click cells to edit • URL columns support file upload • Use filters and search</span>
         </div>
       </div>
     </div>
