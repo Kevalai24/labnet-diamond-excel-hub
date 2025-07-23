@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { ExcelInventorySheet } from '@/components/ExcelInventorySheet'
 import { Button } from '@/components/ui/button'
 import { FileSpreadsheet, Download, Upload, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import type { ProductWithErrors } from '@/hooks/useExcelUpload'
 
 const ExcelManager = () => {
   const { toast } = useToast()
+  const [uploadedData, setUploadedData] = useState<{ products: ProductWithErrors[] } | undefined>()
 
   const handleExport = () => {
     toast({
@@ -88,7 +91,7 @@ const ExcelManager = () => {
       </div>
 
       {/* Spreadsheet Component */}
-      <ExcelInventorySheet />
+      <ExcelInventorySheet uploadedData={uploadedData} />
     </div>
   )
 }

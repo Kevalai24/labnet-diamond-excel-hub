@@ -1,21 +1,22 @@
-import React, { useState, useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle } from 'lucide-react'
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Eye, X } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import { useExcelUpload } from '@/hooks/useExcelUpload'
 import { useToast } from '@/hooks/use-toast'
 
-interface UploadStatus {
-  status: 'idle' | 'uploading' | 'success' | 'error'
-  message: string
-  fileName?: string
+interface Props {
+  onDataUploaded?: (data: any) => void
 }
 
-export function UploadManager() {
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ status: 'idle', message: '' })
+export function UploadManager({ onDataUploaded }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { uploadStatus, uploadExcel, resetUpload } = useExcelUpload()
+  const [showErrorDetails, setShowErrorDetails] = useState(false)
   const { toast } = useToast()
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,37 +24,26 @@ export function UploadManager() {
     if (!file) return
 
     // Validate file type
-    const validTypes = ['.xlsx', '.xls', '.csv']
+    const validTypes = ['.xlsx', '.xls']
     const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
     
     if (!validTypes.includes(fileExtension)) {
-      setUploadStatus({
-        status: 'error',
-        message: 'Please upload a valid Excel file (.xlsx, .xls) or CSV file.',
-        fileName: file.name
+      toast({
+        title: "Invalid File Type",
+        description: 'Please upload a valid Excel file (.xlsx, .xls).',
+        variant: "destructive"
       })
       return
     }
 
-    setUploadStatus({
-      status: 'uploading',
-      message: 'Processing file...',
-      fileName: file.name
+    uploadExcel(file, (result) => {
+      onDataUploaded?.(result)
     })
-
-    // Simulate file processing
-    setTimeout(() => {
-      setUploadStatus({
-        status: 'success',
-        message: 'File uploaded and processed successfully!',
-        fileName: file.name
-      })
-      
-      toast({
-        title: "Upload Successful",
-        description: `${file.name} has been processed and added to your inventory.`,
-      })
-    }, 2000)
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleBrowseClick = () => {
@@ -88,11 +78,11 @@ export function UploadManager() {
             <div className="space-y-2">
               <Button 
                 onClick={handleBrowseClick}
-                variant="brand"
+                variant="default"
                 size="lg"
-                disabled={uploadStatus.status === 'uploading'}
+                disabled={uploadStatus.status === 'processing'}
               >
-                {uploadStatus.status === 'uploading' ? (
+                {uploadStatus.status === 'processing' ? (
                   <>Processing...</>
                 ) : (
                   <>
@@ -105,35 +95,66 @@ export function UploadManager() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx,.xls"
                 onChange={handleFileUpload}
                 className="hidden"
               />
             </div>
             
             <p className="text-xs text-muted-foreground">
-              Supported formats: .xlsx, .xls, .csv (Max size: 10MB)
+              Supported formats: .xlsx, .xls (Max size: 10MB)
             </p>
           </div>
 
           {/* Upload Status */}
           {uploadStatus.status !== 'idle' && (
             <Alert className={
-              uploadStatus.status === 'success' ? 'border-success bg-success/5' : 
+              uploadStatus.status === 'success' ? 'border-green-500 bg-green-50' : 
               uploadStatus.status === 'error' ? 'border-destructive bg-destructive/5' : 
               'border-primary bg-primary/5'
             }>
-              {uploadStatus.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-              {uploadStatus.status === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
-              {uploadStatus.status === 'uploading' && <FileSpreadsheet className="h-4 w-4 text-primary animate-pulse" />}
-              
-              <AlertDescription>
-                <div>
-                  <strong>{uploadStatus.fileName}</strong>
-                  <br />
-                  {uploadStatus.message}
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-2">
+                  {uploadStatus.status === 'success' && <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />}
+                  {uploadStatus.status === 'error' && <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />}
+                  {uploadStatus.status === 'processing' && <FileSpreadsheet className="h-4 w-4 text-primary animate-pulse mt-0.5" />}
+                  
+                  <AlertDescription>
+                    <div>
+                      <strong>{uploadStatus.fileName}</strong>
+                      <br />
+                      {uploadStatus.message}
+                      {uploadStatus.result && uploadStatus.result.errorCount > 0 && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Badge variant="destructive" className="text-xs">
+                            {uploadStatus.result.errorCount} validation errors
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowErrorDetails(true)}
+                            className="h-6 text-xs"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View Details
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </AlertDescription>
                 </div>
-              </AlertDescription>
+                
+                {uploadStatus.status !== 'processing' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetUpload}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </Alert>
           )}
         </CardContent>
@@ -204,7 +225,7 @@ export function UploadManager() {
               <div>
                 <h4 className="font-medium">Upload your file</h4>
                 <p className="text-sm text-muted-foreground">
-                  Upload the completed Excel file and we'll process it automatically
+                  Upload the completed Excel file and we'll process it automatically with validation
                 </p>
               </div>
             </div>
@@ -214,15 +235,38 @@ export function UploadManager() {
                 ✓
               </div>
               <div>
-                <h4 className="font-medium">Review and manage</h4>
+                <h4 className="font-medium">Review and correct errors</h4>
                 <p className="text-sm text-muted-foreground">
-                  View, edit, and manage your uploaded inventory in the Excel Manager
+                  Invalid data will be highlighted in red for easy correction
                 </p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Error Details Dialog */}
+      <Dialog open={showErrorDetails} onOpenChange={setShowErrorDetails}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Validation Errors</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-96">
+            {uploadStatus.result?.errors.map((error, index) => (
+              <div key={index} className="p-3 border border-destructive/20 rounded-lg mb-2 bg-destructive/5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className="text-xs">Row {error.row}</Badge>
+                  <Badge variant="secondary" className="text-xs">{error.field}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{error.message}</p>
+                <p className="text-xs text-destructive mt-1">
+                  Invalid value: <code className="bg-destructive/10 px-1 rounded">{error.value}</code>
+                </p>
+              </div>
+            ))}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -105,6 +105,10 @@ interface Product {
   certificateUrl: string
 }
 
+interface ProductWithErrors extends Product {
+  validationErrors?: Record<keyof Product, boolean>
+}
+
 interface CellPosition {
   rowId: string
   field: keyof Product
@@ -215,12 +219,16 @@ const defaultColumns: Array<{ key: keyof Product; label: string; width: string; 
   { key: 'sellerEmail', label: 'Seller Email', width: 'w-40', visible: false, editable: true }
 ]
 
-export function ExcelInventorySheet() {
-  const [products, setProducts] = useState<Product[]>(sampleProducts)
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(sampleProducts)
+interface Props {
+  uploadedData?: { products: ProductWithErrors[] }
+}
+
+export function ExcelInventorySheet({ uploadedData }: Props) {
+  const [products, setProducts] = useState<ProductWithErrors[]>(uploadedData?.products || sampleProducts)
+  const [filteredProducts, setFilteredProducts] = useState<ProductWithErrors[]>(uploadedData?.products || sampleProducts)
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
-  const [clipboard, setClipboard] = useState<Product[]>([])
+  const [clipboard, setClipboard] = useState<ProductWithErrors[]>([])
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set())
   const [columns, setColumns] = useState(defaultColumns)
   const [customColumnNames, setCustomColumnNames] = useState<Record<string, string>>({})
@@ -233,6 +241,14 @@ export function ExcelInventorySheet() {
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Update state when uploaded data changes
+  useEffect(() => {
+    if (uploadedData?.products) {
+      setProducts(uploadedData.products)
+      setFilteredProducts(uploadedData.products)
+    }
+  }, [uploadedData])
 
   // Generate unique Product ID
   const generateProductId = useCallback((offset = 0) => {
@@ -693,7 +709,7 @@ export function ExcelInventorySheet() {
     })
   }, [toast])
 
-  const renderCell = (product: Product, field: keyof Product) => {
+  const renderCell = (product: ProductWithErrors, field: keyof Product) => {
     const value = product[field]
     const isEditing = editingCell?.rowId === product.id && editingCell?.field === field
     const hasUnsavedChanges = unsavedChanges.has(product.id)
@@ -701,6 +717,7 @@ export function ExcelInventorySheet() {
     const column = columns.find(col => col.key === field)
     const isEditable = column?.editable !== false
     const isUploading = uploadingFiles.has(`${product.id}-${field}`)
+    const hasValidationError = product.validationErrors?.[field] || false
     
     // Special handling for URL fields with upload functionality
     if (field === 'videoUrl' || field === 'imageUrl' || field === 'certificateUrl') {
@@ -809,14 +826,19 @@ export function ExcelInventorySheet() {
           "px-2 py-2 text-xs h-8 flex items-center group",
           isEditable ? "cursor-pointer hover:bg-accent/50" : "cursor-not-allowed bg-muted/50",
           hasUnsavedChanges && "bg-warning/10 border-l-2 border-l-warning",
-          fieldValidation && !fieldValidation.includes(value?.toString() || '') && value?.toString() !== '' && 
-          "bg-destructive/10 border-l-2 border-l-destructive", // Highlight invalid values
+          hasValidationError && "bg-destructive/10 border-l-2 border-l-destructive text-destructive", // Highlight validation errors
           "transition-colors"
         )}
         onClick={() => isEditable && handleCellClick(product.id, field)}
-        title={`${value?.toString()} ${!isEditable ? '(Read-only)' : ''}`}
+        title={`${value?.toString()} ${!isEditable ? '(Read-only)' : ''} ${hasValidationError ? '(Invalid data - needs correction)' : ''}`}
       >
-        <span className="truncate flex-1">{value?.toString() || '-'}</span>
+        <span className="truncate flex-1">
+          {hasValidationError && value?.toString() === '' ? (
+            <span className="text-destructive italic">Click to correct</span>
+          ) : (
+            value?.toString() || '-'
+          )}
+        </span>
         <Copy 
           className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-1 cursor-pointer"
           onClick={(e) => {
